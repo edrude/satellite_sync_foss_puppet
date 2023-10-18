@@ -5,109 +5,112 @@ require 'open3'
 require 'yaml'
 require 'optparse'
 
-# Default values
-options = {
-  org_id: 5,
-  loc_id: 6
-}
+# This script will synchronize the Puppet environments in Satellite with the environments specified in a YAML file.
+class PuppetEnvironmentSyncer
+  attr_reader :options, :current_environments, :desired_environments
 
-# Hammer command base
-hammer_base = '/usr/bin/hammer'
-
-# Parsing command-line options
-OptionParser.new do |opts|
-  opts.banner = 'Usage: sync_environments.rb [options]'
-
-  opts.on('-f', '--file [FILE]', 'Path to a YAML file containing the desired environments') do |file|
-    options[:file] = file
+  def initialize
+    @options = {
+      org_id: 5,
+      loc_id: 6
+    }
+    @hammer_base = '/usr/bin/hammer'
+    parse_cli_options!
+    validate_options
   end
 
-  opts.on('-e', '--environments x,y,z', Array, 'List of environments, separated by commas') do |list|
-    options[:environments] = list
+  def parse_cli_options!
+    OptionParser.new do |opts|
+      opts.banner = 'Usage: sync_puppet_environments.rb [options]'
+
+      opts.on('-f', '--file [FILE]', 'Path to a YAML file containing the desired environments') do |file|
+        @options[:file] = file
+      end
+
+      opts.on('-e', '--environments x,y,z', Array, 'List of environments, separated by commas') do |list|
+        @options[:environments] = list
+      end
+    end.parse!
   end
-end.parse!
 
-# Function to validate the inputs provided by the user
-def validate_options(options)
-  if options[:file].nil? && options[:environments].nil?
-    raise 'Please provide a YAML file or a list of environments.'
-  elsif options[:file] && options[:environments]
-    raise 'Please provide either a YAML file or a list of environments, not both.'
+  def validate_options
+    if @options[:file].nil? && @options[:environments].nil?
+      raise 'Please provide a YAML file or a list of environments.'
+    elsif @options[:file] && @options[:environments]
+      raise 'Please provide either a YAML file or a list of environments, not both.'
+    end
   end
-end
 
-# Validate the provided inputs
-validate_options(options)
+  def load_desired_environments
+    if @options[:file]
+      filepath = @options[:file]
+      raise "The file #{filepath} does not exist." unless File.exist?(filepath)
 
-# Read environments from a YAML file or use the provided list
-if options[:file]
-  filepath = options[:file]
-  raise "The file #{filepath} does not exist." unless File.exist?(filepath)
+      @desired_environments = YAML.load_file(filepath)
+    elsif @options[:environments]
+      @desired_environments = @options[:environments]
+    else
+      raise 'No environments specified.'
+    end
+  end
 
-  desired_environments = YAML.load_file(filepath) # Assumes the file contains a valid array of strings.
-elsif options[:environments]
-  desired_environments = options[:environments]
-else
-  raise 'No environments specified.'
-end
+  def fetch_current_environments
+    command = [
+      @hammer_base,
+      '--output yaml',
+      'puppet-environment list',
+      "--organization-id #{@options[:org_id]} --location-id #{@options[:loc_id]}"
+    ].join(' ')
+    stdout, stderr, status = Open3.capture3(command)
 
-# Fetch the list of current environments in YAML format
-command = [
-  hammer_base,
-  '--output yaml',
-  'puppet-environment list',
-  "--organization-id #{options[:org_id]}",
-  "--location-id #{options[:loc_id]}"
-].join(' ')
-stdout, stderr, status = Open3.capture3(command)
+    raise "Error fetching environments: #{stderr}" unless status.success?
 
-raise "Error fetching environments: #{stderr}" unless status.success?
+    current_environments_data = YAML.safe_load(stdout)
+    @current_environments = current_environments_data.map { |env| env['Name'] }
+  end
 
-# Load the output as YAML
-current_environments_data = YAML.safe_load(stdout)
-current_environments = current_environments_data.map { |env| env['Name'] }
+  def sync_environments
+    @desired_environments.each do |environment|
+      add_environment(environment) unless @current_environments.include?(environment)
+    end
 
-# Output the current environments
-puts 'Current environments:'
-puts "#{current_environments.join("\n")}\n\n"
+    (@current_environments - @desired_environments).each do |environment|
+      if environment == 'production'
+        puts "Warning: 'production' environment is protected and cannot be removed automatically.\n"
+        next
+      end
+      remove_environment(environment)
+    end
+  end
 
-# Output the desired environments
-puts 'Desired environments:'
-puts "#{desired_environments.join("\n")}\n\n"
+  def add_environment(environment)
+    puts "Adding environment: #{environment}"
+    create_command = [
+      @hammer_base,
+      'puppet-environment create',
+      "--name #{environment}",
+      "--organization-ids #{@options[:org_id]} --location-ids #{@options[:loc_id]}"
+    ].join(' ')
+    _, stderr, status = Open3.capture3(create_command)
 
-# Never add or remove 'production'
-if desired_environments.include?('production') && !current_environments.include?('production')
-  puts "Warning: 'production' environment is protected and cannot be added automatically.\n"
-  desired_environments.delete('production')
-end
+    raise "Error creating environment #{environment}: #{stderr}" unless status.success?
+  end
 
-# Create environments that are missing
-desired_environments.each do |environment|
-  next if current_environments.include?(environment)
-
-  puts "Adding environment: #{environment}"
-  create_command = [
-    hammer_base,
-    'puppet-environment create',
-    "--name #{environment}",
-    "--organization-ids #{options[:org_id]}",
-    "--location-ids #{options[:loc_id]}"
-  ].join(' ')
-  _, stderr, status = Open3.capture3(create_command)
-
-  raise "Error creating environment #{environment}: #{stderr}" unless status.success?
-end
-
-# Delete the ones that are not in the desired list, except 'production'
-environments_to_delete = current_environments - desired_environments
-environments_to_delete.each do |environment|
-  if environment == 'production'
-    puts "\nWarning: 'production' environment is protected and will not be removed."
-  else
+  def remove_environment(environment)
     puts "Removing environment: #{environment}"
-    _, stderr, status = Open3.capture3("#{hammer_base} puppet-environment delete --name #{environment}")
+    _, stderr, status = Open3.capture3("#{@hammer_base} puppet-environment delete --name #{environment}")
     raise "Error deleting environment #{environment}: #{stderr}" unless status.success?
   end
+
+  def run
+    load_desired_environments
+    fetch_current_environments
+    sync_environments
+    puts "\nSynchronization complete."
+  end
 end
 
-puts "\nSynchronization complete."
+if __FILE__ == $PROGRAM_NAME
+  syncer = PuppetEnvironmentSyncer.new
+  syncer.run
+end

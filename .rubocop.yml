@@ -1,5 +1,6 @@
 AllCops:
   SuggestExtensions: false
+  DefaultFormatter: simple
 Gemspec/DeprecatedAttributeAssignment: # new in 1.30
   Enabled: true
 Gemspec/DevelopmentDependencies: # new in 1.44

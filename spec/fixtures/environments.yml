@@ -1,0 +1,4 @@
+# spec/fixtures/environments.yml
+---
+- development
+- production
