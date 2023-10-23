@@ -5,8 +5,7 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    name: Lint and Syntax Check
+  validate-test:
     runs-on: ubuntu-latest
 
     # Define the Docker container to use for the job
