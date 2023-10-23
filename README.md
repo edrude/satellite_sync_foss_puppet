@@ -11,41 +11,6 @@ This script is designed to synchronize the Puppet environments in Satellite with
 
 ## Usage
 
-This script can be used in two ways: by specifying a YAML file containing the desired environments or by listing the environments directly in a comma-separated list. Below are the command-line arguments that can be used with this script:
-
-- `-f FILE`, `--file FILE`: Path to a YAML file containing the desired environments. This file should be in the format:
-    ```yaml
-    ---
-    - environment_name_1
-    - environment_name_2
-    ```
-
-- `-e x,y,z`, `--environments x,y,z`: A direct list of environments to be synchronized, separated by commas.
-
-**Example usage:**
-
-```bash
-# Using a file
-./sync_puppet_environments.rb --file /path/to/environments.yaml
-
-# Using a direct list
-./sync_puppet_environments.rb --environments dev,test,prod
-```
-
-## Running Tests
-
-### Prerequisites
-
-- Make sure you have `bundler` installed. If not, you can install it using:
-    ```sh
-    gem install bundler
-    ```
-
-- Next, install all the project dependencies by running:
-    ```sh
-    bundle install
-    ```
-
 ### Executing Tests and Code Analysis
 
 1. In your terminal, navigate to the project's root directory.
