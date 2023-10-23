@@ -45,7 +45,8 @@ class PuppetEnvironmentSyncer
   def delete_puppet_environments(environments)
     refused_to_delete = {}
     environments.each do |env|
-      hosts = @shi.host_list("environment = #{env}", location_id: @location_id, organization_id: @organization_id)
+      hosts = @shi.host_list(search: "environment = #{env}", location_id: @location_id,
+                             organization_id: @organization_id)
       refused_to_delete[env] = hosts and next unless hosts.empty?
 
       output_verbose "Deleting #{env} environment"
@@ -63,8 +64,8 @@ class PuppetEnvironmentSyncer
   end
 
   def force_delete_puppet_environment(delete_environment, replace_environment)
-    hosts = @shi.host_list("environment = #{delete_environment}", location_id: @location_id,
-                                                                  organization_id: @organization_id)
+    hosts = @shi.host_list(search: "environment = #{delete_environment}", location_id: @location_id,
+                           organization_id: @organization_id)
     hosts.each do |host|
       output_verbose "Updating #{host} to use #{replace_environment} environment instead of #{delete_environment}"
       @shi.host_update_puppetenvironment(host, replace_environment)

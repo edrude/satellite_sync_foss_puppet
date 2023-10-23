@@ -2,7 +2,6 @@ name: Run RuboCop and Rspec
 
 on:
   push:
-  pull_request:
 
 jobs:
   validate-test:
@@ -34,3 +33,26 @@ jobs:
 
     - name: Run Rspec
       run: bundle exec rake rspec
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, satellite]
+    needs: [validate-test]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Deploy
+        run: |
+          ls
+          INCLUDE_PATHS="bin utils lib"
+          DESTINATION="/home/actions-runner/satellite_sync_foss_puppet"
+  
+          RSYNC_COMMAND="/usr/bin/rsync -av --delete"
+          for PATH in $INCLUDE_PATHS; do
+            RSYNC_COMMAND+=" --include=$PATH/***"
+          done
+  
+          RSYNC_COMMAND+=" --exclude=*"
+
+          # Run the rsync command.
+          $RSYNC_COMMAND ${{ github.workspace }}"/" $DESTINATION

@@ -82,8 +82,8 @@ RSpec.describe PuppetEnvironmentSyncer do
 
       context 'when environments dont have any hosts' do
         before do
-          allow(shi).to receive(:host_list).with('environment = development',
-                                                 { location_id: nil, organization_id: nil }).and_return([])
+          allow(shi).to receive(:host_list).with(search: 'environment = development',
+                                                 location_id: nil, organization_id: nil).and_return([])
         end
 
         let(:environments) { ['development'] }
@@ -96,8 +96,8 @@ RSpec.describe PuppetEnvironmentSyncer do
 
       context 'when environments have hosts' do
         before do
-          allow(shi).to receive(:host_list).with('environment = development',
-                                                 { location_id: nil, organization_id: nil }).and_return(['host'])
+          allow(shi).to receive(:host_list).with(search: 'environment = development',
+                                                 location_id: nil, organization_id: nil).and_return(['host'])
         end
 
         let(:environments) { ['development'] }
@@ -116,21 +116,21 @@ RSpec.describe PuppetEnvironmentSyncer do
         before do
           allow(shi).to receive(:puppetenvironment_delete).with('development').and_return(true)
           allow(shi).to receive(:host_update_puppetenvironment).with('host', 'production').and_return(true)
-          allow(shi).to receive(:host_list).with('environment = development',
-                                                 { location_id: nil, organization_id: nil }).and_return(['host'])
+          allow(shi).to receive(:host_list).with(search: 'environment = development',
+                                                 location_id: nil, organization_id: nil).and_return(['host'])
         end
 
-        let(:delete_environments) { 'development' }
-        let(:replace_environments) { 'production' }
+        let(:delete_environment) { 'development' }
+        let(:replace_environment) { 'production' }
 
         it 'moves hosts out of the environment' do
           expect(shi).to receive(:host_update_puppetenvironment).with('host', 'production')
-          syncer.force_delete_puppet_environment(delete_environments, replace_environments)
+          syncer.force_delete_puppet_environment(delete_environment, replace_environment)
         end
 
         it 'deletes the environment' do
           expect(shi).to receive(:puppetenvironment_delete).with('development')
-          syncer.force_delete_puppet_environment(delete_environments, replace_environments)
+          syncer.force_delete_puppet_environment(delete_environment, replace_environment)
         end
       end
     end

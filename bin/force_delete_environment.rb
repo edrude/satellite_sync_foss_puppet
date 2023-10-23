@@ -17,7 +17,7 @@ OptionParser.new do |opts|
   opts.on('-r', '--replace-environment ENVIRONMENT', 'Environment to move displacted hosts to') do |r|
     options[:replace_environment] = r
   end
-end
+end.parse!
 
 raise 'Please provide an environment to delete.' if options[:environment].nil?
 raise 'Please provide an environment to move displaced hosts to.' if options[:replace_environment].nil?
