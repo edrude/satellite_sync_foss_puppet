@@ -105,8 +105,7 @@ RSpec.describe PuppetEnvironmentSyncer do
         it 'does not delete the environment' do
           delete = -> { syncer.delete_puppet_environments(environments) }
           expect(shi).not_to receive(:puppetenvironment_delete).with('development')
-          expect(&delete).to raise_error(/Refused to delete at least one environment/)
-            .and output(/Refused to delete development environment/).to_stderr
+          expect(&delete).to output(/Refused to delete development environment/).to_stderr
         end
       end
     end

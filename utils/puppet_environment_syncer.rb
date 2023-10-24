@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'erb'
+
 require_relative '../lib/satellite_hammer_interface'
 
 # Used to keep Satellite 6 Puppet environments in sync with a desired list of environments
@@ -10,6 +12,7 @@ class PuppetEnvironmentSyncer
     @organization_id = organization_id
     @verbose = verbose
     @protected_environments = protected_environments
+    @encoded_eol = ERB::Util.url_encode("\n")
   end
 
   def output_verbose(message)
@@ -29,7 +32,7 @@ class PuppetEnvironmentSyncer
   def protect_puppet_environments(to_remove)
     return unless to_remove.any? { |env| @protected_environments.include?(env) }
 
-    warn 'Since we tried to delete a protected environment ' \
+    warn '::warning::Since we tried to delete a protected environment ' \
          "(#{@protected_environments.join(', ')})" \
          ', a human should examine the situation.'
     raise 'Cannot delete protected environment(s)'
@@ -58,9 +61,9 @@ class PuppetEnvironmentSyncer
 
   def handle_delete_refusals(delete_refusals)
     delete_refusals.each do |env, hosts|
-      warn "Refused to delete #{env} environment because it is still used by these hosts:\n#{hosts.join("\n")}"
+      warn '::warning title=Attempted to Delete Environment with Hosts::Refused to delete ' \
+           "#{env} environment because it is still used by these hosts:#{@encoded_eol}#{hosts.join(@encoded_eol)}"
     end
-    raise 'Refused to delete at least one environment (see output above)'
   end
 
   def force_delete_puppet_environment(delete_environment, replace_environment)
