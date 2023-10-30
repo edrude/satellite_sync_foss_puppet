@@ -6,12 +6,14 @@ require_relative '../lib/satellite_hammer_interface'
 
 # Used to keep Satellite 6 Puppet environments in sync with a desired list of environments
 class PuppetEnvironmentSyncer
-  def initialize(location_id: nil, organization_id: nil, protected_environments: ['production'], verbose: false)
+  def initialize(location_id: nil, organization_id: nil, protected_environments: ['production'],
+                 never_add_environments: ['gh-pages'], verbose: false)
     @shi = SatelliteHammerInterface.new
     @location_id = location_id
     @organization_id = organization_id
     @verbose = verbose
     @protected_environments = protected_environments
+    @never_add_environments = never_add_environments
     @encoded_eol = ERB::Util.url_encode("\n")
   end
 
@@ -21,7 +23,7 @@ class PuppetEnvironmentSyncer
 
   def sync_puppet_environments(desired_environments)
     current_environments = @shi.puppetenvironment_list(location_id: @location_id, organization_id: @organization_id)
-    to_add = (desired_environments - current_environments)
+    to_add = (desired_environments - current_environments - @never_add_environments)
     to_remove = (current_environments - desired_environments)
 
     protect_puppet_environments(to_remove)
